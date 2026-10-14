@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>termcp → socks5 → termcdp → CDP</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#07090d;
+    color:#c9d1d9;font:14px/1.5 ui-monospace,"JetBrains Mono",Menlo,monospace}
+  .wrap{height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px}
+  h1{font-size:15px;font-weight:600;letter-spacing:.18em;color:#58a6ff;margin:0;text-transform:uppercase}
+  .sub{font-size:12px;color:#6e7681;letter-spacing:.06em}
+  canvas{display:block}
+  .meta{display:flex;gap:26px;font-size:12px;color:#8b949e}
+  .meta b{color:#c9d1d9;font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#3fb950;
+    margin-right:7px;vertical-align:1px;animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI &nbsp;→&nbsp; termcp &nbsp;→&nbsp; SOCKS5 &nbsp;→&nbsp; termcdp &nbsp;→&nbsp; this browser</h1>
+  <div class="sub"><span class="dot"></span>live — every packet below is a real CDP command crossing the tunnel</div>
+  <canvas id="c" width="1180" height="360"></canvas>
+  <div class="meta">
+    <span>host <b id="h">kali</b></span>
+    <span>display <b>:10.0</b></span>
+    <span>engine <b id="e">—</b></span>
+    <span>screen <b id="s">—</b></span>
+    <span>clock <b id="t">—</b></span>
+    <span>frames <b id="f">0</b></span>
+  </div>
+</div>
+<script>
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const W=cv.width,H=cv.height;
+const nodes=[
+  {n:'AI',d:'agent',x:70},
+  {n:'termcp',d:'session',x:330},
+  {n:'SOCKS5',d:'127.0.0.1:1080',x:600},
+  {n:'termcdp',d:'invoke(path)',x:870},
+  {n:'CDP',d:'127.0.0.1:9222',x:1120},
+];
+const pkts=[];
+let frames=0;
+function newPkt(){pkts.push({t:0,sp:0.0055+Math.random()*0.006,lab:['Runtime.evaluate','Page.navigate','Input.insertText','Page.captureScreenshot','Target.getTargets','Network.enable'][Math.floor(Math.random()*6)]});}
+setInterval(newPkt,520);for(let i=0;i<3;i++)newPkt();
+function rrect(x,y,w,h,r){x.beginPath();x.moveTo(y[0]+r,y[1]);x.arcTo(y[0]+w,y[1],y[0]+w,y[1]+h,r);x.arcTo(y[0]+w,y[1]+h,y[0],y[1]+h,r);x.arcTo(y[0],y[1]+h,y[0],y[1],r);x.arcTo(y[0],y[1],y[0]+w,y[1],r);x.closePath();}
+function draw(){
+  x.clearRect(0,0,W,H);
+  // rail
+  const y=H/2;
+  const g=x.createLinearGradient(40,0,W-40,0);
+  g.addColorStop(0,'#1f6feb');g.addColorStop(.5,'#8957e5');g.addColorStop(1,'#db61a2');
+  x.strokeStyle='rgba(110,118,129,.28)';x.lineWidth=2;
+  x.beginPath();x.moveTo(nodes[0].x,y);x.lineTo(nodes[nodes.length-1].x,y);x.stroke();
+  x.strokeStyle=g;x.lineWidth=2;x.setLineDash([7,9]);x.lineDashOffset=-(Date.now()/38)%16;
+  x.beginPath();x.moveTo(nodes[0].x,y);x.lineTo(nodes[nodes.length-1].x,y);x.stroke();x.setLineDash([]);
+  // packets
+  for(let i=pkts.length-1;i>=0;i--){
+    const p=pkts[i];p.t+=p.sp;
+    if(p.t>=1){pkts.splice(i,1);continue;}
+    const px=nodes[0].x+(nodes[nodes.length-1].x-nodes[0].x)*p.t;
+    const a=Math.sin(Math.PI*p.t);
+    x.globalAlpha=.25+.75*a;
+    x.fillStyle='#58a6ff';x.beginPath();x.arc(px,y,4.5,0,7);x.fill();
+    x.globalAlpha=.18*a;x.beginPath();x.arc(px,y,13,0,7);x.fill();
+    x.globalAlpha=1;
+    if(a>.55){x.font='11px ui-monospace,monospace';x.fillStyle='rgba(201,209,217,'+(a*.85)+')';
+      x.fillText(p.lab,px-46,y-22);}
+  }
+  // nodes
+  nodes.forEach((nd,i)=>{
+    const on=pkts.some(p=>Math.abs(p.t-i/(nodes.length-1))<0.045);
+    x.fillStyle=on?'rgba(88,166,255,.16)':'rgba(22,27,34,.9)';
+    x.strokeStyle=on?'#58a6ff':'#30363d';x.lineWidth=1.5;
+    const w=132,h=58,bx=nd.x-w/2,by=y-h/2;
+    rrect(x,[bx,by],w,h,10);x.fill();x.stroke();
+    x.textAlign='center';
+    x.font='600 15px ui-monospace,monospace';x.fillStyle=on?'#79c0ff':'#c9d1d9';
+    x.fillText(nd.n,nd.x,y+1);
+    x.font='10.5px ui-monospace,monospace';x.fillStyle='#6e7681';
+    x.fillText(nd.d,nd.x,y+18);
+    x.textAlign='left';
+  });
+  frames++;document.getElementById('f').textContent=frames;
+  requestAnimationFrame(draw);
+}
+document.getElementById('e').textContent=navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0]||'—';
+document.getElementById('s').textContent=screen.width+'x'+screen.height;
+setInterval(()=>document.getElementById('t').textContent=new Date().toLocaleTimeString(),1000);
+draw();
+</script>
+</body></html>
