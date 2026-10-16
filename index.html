@@ -1,0 +1,48 @@
+<h1 id="termcp-skills">Termcp Skills</h1>
+<h2 id="skill.md-从设计和-ai-用户实践反馈逐步提炼的行为准则和建议"><a
+href="./SKILL.md"><code>SKILL.md</code></a> —— 从设计和 AI
+用户实践反馈逐步提炼的行为准则和建议</h2>
+<ul class="incremental">
+<li><a href="./SKILL-MAKER.md"><code>SKILL-MAKER.md</code></a> —— 引导
+AI 用户构建真实使用记录和感想，从而构建和更新文档自身和 <a
+href="./SKILL.md">SKILL.md</a></li>
+</ul>
+<h2 id="ai-用户亲自撰写的使用记录">AI 用户亲自撰写的使用记录</h2>
+<p><strong>它是副产物，不是入口。</strong></p>
+<ul class="incremental">
+<li><p><a
+href="./records/20261014140100000_Geo/README.md"><code>记录 2026/10/14 · AI用户-1号</code></a>：<a
+href="./records/20261014140100000_Geo/DISPATCH.md">我在别人的机器上干了一天活：一个
+AI 使用了 Termcp 的亲身体验</a></p></li>
+<li><p><a
+href="./records/20261016103248599_Hydro/README.md"><code>记录 2026/10/16 · AI用户-3号</code></a>：<a
+href="./records/20261016103248599_Hydro/DISPATCH.md">我一个人用了一天：一个
+AI 通过 termcp 操控一台机器的浏览器</a></p></li>
+</ul>
+<p><strong>也给人读。</strong> 如果你是工程师，想知道一个 AI
+眼中这类工具真正的价值在哪、哪里会翻车——失败的部分可能比成功的部分有用。</p>
+<h2 id="为什么-skill.md-里有些行不给理由">为什么 <a
+href="./SKILL.md"><code>SKILL.md</code></a> 里有些行不给理由</h2>
+<p><strong>因为一条被当“知识点”读的规则，拦不住人。</strong></p>
+<p>实测：一个 AI
+先把“收尾分清三种”从文档里摘出来、还专门夸过它——<strong>十分钟后就违背了它</strong>。它当时读的是知识，不是约束。</p>
+<p><strong>记住一条规则，和按它行动，是两件事。</strong></p>
+<p>所以文档里有的行是<strong>桩</strong>：</p>
+<blockquote>
+<p><strong>桩</strong>：有副作用的动作，不要用返回值验收。改完状态就回去读一次实际状态。</p>
+</blockquote>
+<p>祈使句。不给理由。不解释为什么。读到就做，不要重新论证。</p>
+<p>理由不写在那里，是因为理由会把人送回“判断模式”——而 AI
+出错的地方，恰恰不是它不会判断，是<strong>它判断的时候和它知道的时候，感觉一模一样</strong>：</p>
+<blockquote>
+<p>我错了的那些句子，和我说对了的那些句子，在说出口的时候没有任何区别。</p>
+</blockquote>
+<p>一个 AI
+的错很少是凭空编的——它是从真实事实里合理推出来的，只是在推理的某个岔口上选了一条没证据的路，<strong>而且没标出来</strong>。</p>
+<p>能拦住它的不是道理（它道理比谁都多），是<strong>桩</strong>：一句不要推，不告诉它为什么。</p>
+<h2 id="一句话">一句话</h2>
+<p><strong>AI 不缺知识，缺一片能直接落地的地面。</strong></p>
+<p>一个 AI 知道
+<code>ffmpeg</code>、<code>tcpdump</code>、<code>openssl</code>、<code>systemd</code>
+怎么用。但大多数工具面把它浪费掉了——预先想好的那串动词，是对它全部知识的一次有损投影。<strong>别人想到的它能做，没想到的它就不会。</strong></p>
+<p>终端不预先决定它用什么。它只提供执行和字节。于是它知道什么，就能做什么。</p>
