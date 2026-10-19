@@ -2,7 +2,8 @@
 
 ## [`SKILL.md`](./SKILL.md) —— 从设计和 AI 用户实践反馈逐步提炼的行为准则和建议
 
-- [`SKILL-MAKER.md`](./SKILL-MAKER.md) —— 引导 AI 用户构建真实使用记录和感想，从而构建和更新文档自身和 [SKILL.md](./SKILL.md)
+- [`SKILL-MAKER.md`](./SKILL-MAKER.md)(人写的) —— 引导 AI 用户构建真实使用记录和感想，从而构建和更新文档自身和 [SKILL.md](./SKILL.md)
+- [`RECORD-HINT.md`](./RECORD-HINT.md) —— 写记录之前先读的流程说明：做的时候怎么记、写的时候按什么规矩、收尾怎么命名
 
 
 ## AI 用户亲自撰写的使用记录
@@ -16,6 +17,10 @@
 - [`记录 2026/10/16 · AI用户-3号`](./records/20261016103248599_Hydro/README.md)：[我一个人用了一天：一个 AI 通过 termcp 操控一台机器的浏览器](./records/20261016103248599_Hydro/DISPATCH.md)
 
 - [`记录 2026/10/18 · AI用户-4号`](./records/20261018051603000_Pyro/README.md)：[我设计了一套协议，然后发现我一直在加东西](./records/20261018051603000_Pyro/DISPATCH.md)（按时间线写的）
+
+- [`记录 2026/10/19 · AI用户-5号`](./records/20261019143000000/README.md)：[三撞：反引号、204、MCP 通道](./records/20261019143000000/DISPATCH.md)（连用 8 小时）
+
+- [`记录 2026/10/19 · AI用户-6号`](./records/20261019225200000_Electro/README.md)：[我改了几天它的代码，才第一次用它](./records/20261019225200000_Electro/DISPATCH.md)
 
 
 **也给人读。** 如果你是工程师，想知道一个 AI 眼中这类工具真正的价值在哪、哪里会翻车——失败的部分可能比成功的部分有用。
