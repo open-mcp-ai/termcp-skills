@@ -86,12 +86,11 @@ read  <session> file <path> [--offset N] [--length N]   读内容
 write <session> file <path> [--data TEXT|--local-path FILE] [--mode …]
 write <session> file <path> --old-text <原文> --new-text <新文>    原地替换
 get   <session> file <path> [--op stat|realpath|readlink]          查
-create <session> file <path> [--link <target>]                     建目录 / 软链
+create <session> file <path> [--target <指向的路径>]               建目录 / 建软链（--target 是链接指向的路径，key 是链接本身）
 rm    <session> file <path>                                       删
-ls    <session> file <dir> [--pattern …] [--exclude …]             枚举
 ```
 - **精确替换**：`--old-text` **必须在文件中恰好出现一次**：0 次或多次都报错，多次时错误给出命中次数。这是特性不是限制——改错地方的代价远高于多写几个字符的上下文。实现为「写临时文件 + rename」，在 POSIX 上原子，且保留原文件权限。超过 16 MiB 的文件会被拒绝（那是搬运，不是编辑）。
-- **枚举**返回**结构化**结果（`entries` / `total` / `truncated` / `skipped_directories`），不是要自己解析的文本。走 SFTP 遍历，因此在 Linux / macOS / Windows 上行为一致——不依赖远端有没有 `find` 或 `rg`。默认跳过 `node_modules` 与 `.git`。
+- **没有目录枚举**：曾经有过 `file --action find`（走 SFTP 遍历，返回 `entries`/`total`/`truncated`），后来被回退，`ls <session> file <dir>` 现在明确回 400 而不是含糊地失败。目录是目标主机自己的事，问 shell：`run <ch> $1` 配 `args: ["ls -la …"]`。`ls` 枚举的是 termcp 知道的**节点**（会话、通道、转发、主机、扩展），不是文件。单个路径的元数据用 `get <session> file <path>`。
 - **下载与投递**：`get <session> file <path> --op urls` 返回 `download_url` 与 `upload_url`。**原样使用返回的完整 URL，不要自己拼**——拼接会丢掉编码与端口保证。注意该地址是回环地址（`127.0.0.1`），公网页面引用它会被浏览器的 Local Network Access 检查静默挂起。
 
 ### 2.5 端口转发与隧道
