@@ -23,81 +23,104 @@ description: 用 termcp 操作终端。当请求提到 termcp、termcp:// 定位
 ### 1.1 唯一工具面
 Termcp 在 MCP 工具层只暴露**一个工具**：`term(cmd, ...)`。
 所有终端创建、输入输出、文件传输、网络穿透、CDP/MCP 桥接全部收敛为 DSL 命令行。
-- **不传 `cmd`**：立即返回环境指南（Bearings：当前所在会话、活跃终端、系统架构、可用指令）。
-- **查阅用法**：直接执行 `help`（列出 25 条指令清单）或 `help <directive>`（获取单条指令的完整语法和注意事项）。**文档以运行中实例的实时输出为准。**
+- **不传 `cmd`**：立即返回环境指南（Bearings：当前所在会话、活跃终端、可用动词）。
+- **查阅用法**：直接执行 `help`（列出 19 个动词）或 `help <verb>`（单条动词的一页）。**文档以运行中实例的实时输出为准。**
 
-### 1.2 句柄体系与生命周期
-句柄格式为 `<session>:<index>`（例如 `a1f3:1`），代表会话内的一个终端通道。
-- **永远不要手造句柄**：从 `ps` 的第一列直接复制。
-- **分清三层生命周期**：
-  1. `close <handle>`：仅关闭单个终端通道，会话及其网络转发保持存活。
-  2. `close <session> [--force] [--grace N]`：终止整个会话及所有关联进程，连接断开，但**历史输出仍保留在磁盘上可查**。不带 `--force` 时先发 SIGTERM 并等待 `--grace`（默认 5 秒）让其自行收尾；带 `--force` 则**跳过等待直接断开**，两者不要同时依赖。
-  3. `rm <session> [--force]`：从磁盘彻底抹除会话记录，不可逆。会话仍在运行时拒绝并要求 `--force`（`409 session_running`）。
+### 1.2 一棵树，动词作用在节点上
+只有一种句式：**一个动词 + 它作用的那个节点**。
 
-### 1.3 两个终端原语
-- **`pty <entry|session> [--name ...]`**：分配伪终端（PTY）。为交互式程序（vim、top、确认交互、彩色输出）设计，支持 `resize <handle> <rows> <cols>`。
-- **`pipe <entry|session> [--argv ...]`**：标准输入输出管道。为确定性脚本、批量任务、常驻 MCP/stdio 服务设计。无终端转义干扰，程序退出即自动结算退出码。
-  - `--on-exit close`：进程退出时自动销毁会话容器，适用于一次性批量任务。
-  - 注意：`--on-exit close` 仅依据终端通道判定；伴生的端口转发（`fwd`）不属于终端通道，会随会话关闭而一同断开。若转发需跨命令存活，使用默认的 `--on-exit keep`。
+```text
+host ──connect──▶ session ──┬── <index>   = channel（一条 shell）
+                            ├── file <path>
+                            ├── forward <id>
+                            └── mcp|cdp|jrpc <url>   = peer
+ext 独立成列（ls ext / create ext / rm ext）
+```
+
+- `connect <host>` 建一个 session；`open <session>` 给它加一个子节点；其余动词作用在一个节点上。
+- 地址永远从 `ls` 的第一列复制，**不要手拼**。`a1f3:1` 与 `a1f3 1` 等价：冒号是 `ls` 打印的样子，空格是语法本身。
+- **pty / pipe 不是指令**，是 `open <session>` 的模式，规则直接借 ssh 的：有 `--argv` 就是无终端的管道，没有就是终端，`--pty` 可强制回来。pty 没有「命令结束」的信号，所以退出码读不到——要退出码就得是 pipe。
+
+### 1.3 三层生命周期
+1. `close <channel>`：只关一个终端通道，会话与转发照常。**通道是归档而非销毁**，输出仍可用 `read` 取回。
+2. `close <session> [--grace N]`：终止整个会话。先 SIGTERM 再等 `--grace`（默认 5 秒）。**没有 `--force`**：跳过等待用 `--grace 0`，抹除用 `rm`。
+3. `rm <session>`：从磁盘彻底抹除会话记录，不可逆。运行中会被拒绝（`409 session_running`）。
+   `rm <session> file <path>` 是删子节点，`rm <session>` 是删容器——和文件夹一样。
 
 ---
 
 ## 2. 核心指令体系与工作流
 
 ### 2.1 进程交互与执行
-- **`run <handle> <payload>`**：执行命令。payload 原样交给底层 shell，自动追加换行回车，等待并返回首屏输出。
-- **`type <handle> <payload>`**：向终端注入按键文本，**不追加换行**。用于回答 `(y/n)`、输入交互参数。
-- **`key <handle> <key>`**：发送控制按键（支持 `enter`, `tab`, `esc`, `up`, `down`, `left`, `right`, `backspace`, `delete`, `home`, `end`, 以及 `ctrl+c`, `ctrl+d`, `ctrl+z`, `ctrl+l`, `ctrl+u`, `ctrl+w`）。注意组合键必须用加号 `+` 连接。
+- **`run <session> <index> <payload>`**：执行命令。payload 原样交给底层 shell，自动追加换行回车，等待并返回首屏输出。
+- **`input <session> <index> <payload>`**：向终端注入按键文本，**不追加换行**。用于回答 `(y/n)`、输入交互参数。
+- **`key <session> <index> <key>`**：发送控制按键（`enter`, `tab`, `esc`, `up`, `down`, `left`, `right`, `backspace`, `delete`, `home`, `end`，以及 `ctrl+c`, `ctrl+d`, `ctrl+z`, `ctrl+l`, `ctrl+u`, `ctrl+w`）。组合键用加号连接。
+- **`resize <session> <index> <rows> <cols>`**：改终端尺寸。
+
+**sh 不作为语法进入 `cmd`。** `cmd` 只放 DSL；shell 命令经 `args`（`$1`、`$2`）或 `vars`（`$NAME`）作为**值**进入：
+```text
+run a1f3:1 $1     args: ["make && test"]     一条 sh
+run a1f3:1 make && notify done              两条 DSL
+```
+`cmd` 支持 `&&` `||` `;` `&`。裸控制字节（引号外的 CR / ^C / ^D / ESC …）默认 400——用 `vars` 送数据，或 `allow_escapes: true` 明确放行。
 
 ### 2.2 流式读取与三轴窗口
-终端输出是一条连续的字节流，每次读取通过三轴窗口进行约束：
+终端输出是一条连续字节流，每次读取用三轴窗口约束：
 ```text
-read <handle> [--from-line N] [--tail N] [--cursor N] [--stream o|e] [--raw]
+read <session> <index> [--from-line N] [--tail N] [--cursor N] [--stream o|e] [--raw] [--grep RE]
 ```
-- **行寻址优先**：强烈建议使用 `--from-line N` 或 `--tail N` 按行读取。行号是绝对锚点；避免自己推算字节游标，字节计算失误会导致永久错位。
-- **分离错误流**：`--stream e` 读取标准错误，`--stream o` 读取标准输出。
-- **读取控制参数**：通过 `term` 工具参数设置：
-  - `bytes_limit` / `lines_limit` / `timeout`
-  - `on_bytes_overflow: "fold"`：当内容超出限制时清空返回，避免截断损坏多字节字符。
+- **行寻址优先**：用 `--from-line N` 或 `--tail N` 按行读。行号是绝对锚点；自己推算字节游标一旦算错就永久错位。
+- **分离错误流**：`--stream e` 读 stderr，`--stream o` 读 stdout。
+- **窗口参数**（`term` 工具参数，不是指令）：`bytes_limit` / `lines_limit` / `timeout`，以及 `on_bytes_overflow: "fold"`（超出时不返回半截内容，避免多字节字符被截断）。
 
-### 2.3 状态监听与主动唤醒
-无需轮询等待长时间任务：
-- **`watch <handle> --event <output|exit|silence> [--for N]`**：挂载监听规则。
-  - `exit`：进程结束时唤醒。
-  - `output`：产生新输出时唤醒。
-  - `silence --for 3`：输出停止并静默满指定秒数后唤醒。
-- 当事件触发时，服务端主动向 MCP 客户端推送 Resource/Sampling 通知。
+### 2.3 长任务的判定与取回
+MCP 层在约 120 秒处有自己的硬超时，与 `timeout` 参数无关。所以长任务不要靠"等"：
+- **超过约 100 秒的操作，发出去，之后再 `read` 取。**
+- **pipe 通道**在窗口用尽而进程仍在跑时，回复带 `Still-Running: true`——这是区分"还在跑"和"跑完但没输出"的唯一依据。
+- **没有任何被动监听指令。** 曾经有过一个，实测无法送达：`notifications/resources/updated` 是订阅作用域、无 payload，MCP 也没有"把通知注入模型对话"的原语。它的失败是静默的，所以被整个删掉了，而不是留着"看起来能用"。
 
-### 2.4 文件操作（SFTP）
-所有文件操作复用 SSH 连接，不占用终端通道：
+### 2.4 文件（SFTP）
+文件是 session 的子节点，十几项操作按语义分给了动词：
 ```text
-file <session> --action read|write|stat|delete|rename|mkdir|urls|perm|link|fs ...
+read  <session> file <path> [--offset N] [--length N]   读内容
+write <session> file <path> [--data TEXT|--local-path FILE] [--mode …]
+write <session> file <path> --old-text <原文> --new-text <新文>    原地替换
+get   <session> file <path> [--op stat|realpath|readlink]          查
+create <session> file <path> [--link <target>]                     建目录 / 软链
+rm    <session> file <path>                                       删
+ls    <session> file <dir> [--pattern …] [--exclude …]             枚举
 ```
-- **读写**：`file <session> --action read --remote-path <path>`（支持 `--offset` 与 `--length` 定位）。
-- **下载与投递**：`file <session> --action urls --remote-path <path>` 返回 `download_url` 与 `upload_url`，用于向外部浏览器或程序交付文件。**原样使用工具返回的完整 URL，不要自己拼**——拼接会丢掉编码与端口保证。注意该地址是回环地址（`127.0.0.1`），公网页面引用它会被浏览器的 Local Network Access 检查静默挂起。
+- **精确替换**：`--old-text` **必须在文件中恰好出现一次**：0 次或多次都报错，多次时错误给出命中次数。这是特性不是限制——改错地方的代价远高于多写几个字符的上下文。实现为「写临时文件 + rename」，在 POSIX 上原子，且保留原文件权限。超过 16 MiB 的文件会被拒绝（那是搬运，不是编辑）。
+- **枚举**返回**结构化**结果（`entries` / `total` / `truncated` / `skipped_directories`），不是要自己解析的文本。走 SFTP 遍历，因此在 Linux / macOS / Windows 上行为一致——不依赖远端有没有 `find` 或 `rg`。默认跳过 `node_modules` 与 `.git`。
+- **下载与投递**：`get <session> file <path> --op urls` 返回 `download_url` 与 `upload_url`。**原样使用返回的完整 URL，不要自己拼**——拼接会丢掉编码与端口保证。注意该地址是回环地址（`127.0.0.1`），公网页面引用它会被浏览器的 Local Network Access 检查静默挂起。
 
 ### 2.5 端口转发与隧道
+转发是 session 的子节点，由 `open` / `close` / `ls` 管理：
 ```text
-fwd <session> --action local|remote|dynamic|list|close ...
+open  <session> forward --local-port 0 --remote-host 127.0.0.1 --remote-port 80
+open  <session> forward --local-port 1080 --dynamic          SOCKS5
+ls    <session> forward
+close <session> forward <id>
 ```
-- **本地端口转发**：`--action local --local-port 0 --remote-host 127.0.0.1 --remote-port 80`。termcp 监听本地随机端口并穿透至远端。
-- **SOCKS5 动态代理**：`--action dynamic --local-port 1080`。
 
 ### 2.6 网关集成（MCP / CDP / JRPC）
-- **控制有头/无头浏览器**：
-  ```text
-  cdp open ws://127.0.0.1:9222/devtools/browser/...
-  cdp call <handle> '{"id":1,"method":"Browser.getVersion"}'
-  cdp recv <handle>
-  ```
-- **挂载外部 MCP 服务**：
-  通过 `pipe` 启动 stdio MCP 服务，直接使用 `mcp open` 或 `mcp call <handle>` 进行双向 JSON-RPC 交互。
+三个网关都是**穿过某个 session** 的 peer 子节点——URL 里的 `localhost` 指的是那台主机的 localhost，不是 termcp 进程所在的机器：
+```text
+open <session> cdp ws://127.0.0.1:9222/devtools/browser/...
+call <handle> '{"id":1,"method":"Browser.getVersion"}'
+read <handle>                     下一帧事件
+close <handle>
+```
+- **挂载外部 MCP 服务**：`open <session> mcp http://…`（网络 peer），或在 `pipe` 通道里跑一个 stdio server 后用 `call <handle>` 对它说话。两种 peer 用同一套动词，调用方不必知道自己面对的是哪一种。
+- `open` 顺带完成 MCP 握手并把对方的工具清单附在回复里——**不需要再发一次 `tools/list`**。
+- 帧永远走 `call`（payload 逐字节，引号不重写）；读帧走 `read <handle>`（网络 peer）或 `read <channel> --frame`（stdio）。后者要 `--frame`，否则普通命令输出会被当 JSON-RPC 解析。
 
 ### 2.7 扩展机制（能力热加载）
 扩展是持久化的技能运行时，不是受限沙盒：
 - 一个扩展自带运行环境（本地/远端）、启动命令与权限白名单。
-- `ext list`：查看当前环境开箱即可使用的专属扩展。
-- `ext create <name> --kind mcp ...`：动态安装并常驻一个 MCP 服务，使用者和制造者的边界在此消除。
+- `ls ext`：查看当前环境开箱即可使用的专属扩展。**先看这里**——扩展自带说明书，那才是操作手册。
+- `create ext <name> --kind mcp ...`：动态安装并常驻一个 MCP 服务，使用者和制造者的边界在此消除。
+- `edit ext <name> …` / `rm ext <name>`：改和删。`ls ext` 也会列出别名（alias），别名用 `create alias` 建、`rm alias` 删。
 
 ---
 
@@ -111,10 +134,10 @@ fwd <session> --action local|remote|dynamic|list|close ...
 
 ### 桩 2：不要用返回状态码验证副作用
 - **现象**：
-  - `file truncate` 缺少 `--size` 时静默清空文件并返回 200。
-  - `profile delete` 曾对不存在的名字返回 200。
+  - `write … file …`（当时的 `file truncate`）缺少 `--size` 时静默清空文件并返回 200。
+  - `rm host`（当时的 `profile delete`）曾对不存在的名字返回 200。
   - 动词少写或错写，参数被接口静默降级为读取操作，返回 200。
-- **约束**：**动作类调用（写、改、删），必须断言实际状态的变化（读文件长度、查 ps 列表），永远不要拿 200 或 204 作为完成凭据。**
+- **约束**：**动作类调用（写、改、删），必须断言实际状态的变化（读文件长度、查 `ls` 列表），永远不要拿 200 或 204 作为完成凭据。**
 
 ### 桩 3：说“测过了”之前，把 Body 打出来
 - **现象**：命令返回了 HTTP 400，但因为未崩溃，被误以为“链路已跑通”，导致接口长期不可用。
@@ -129,8 +152,16 @@ fwd <session> --action local|remote|dynamic|list|close ...
 - **约束**：**正常的超时必然等满整个窗口（例如 2.0s）。若非阻塞探测以外的读取在几毫秒内闪退返回“无数据”，立即判定连接异常，停止盲目重试。**
 
 ### 桩 6：修改主机配置前先确认管理开关
-- **现象**：`profile` 的增删改写操作依赖 `--mcp-manage-ssh-configs` 启动参数。开关未开时，所有写操作被统一拦截为 403 `forbidden`。
+- **现象**：`create host` / `edit host` / `rm host` 依赖 `--mcp-manage-ssh-configs` 启动参数。开关未开时，所有写操作被统一拦截为 403 `forbidden`。
 - **约束**：**遇到 403 提示 `start termcp with --mcp-manage-ssh-configs` 时，不要盲目重试或质疑语法，该实例当前处于只读模式。若需测试配置管理，须先启动带该开关的实例。**
+
+### 桩 7：回复"半死"时，用两个入口二分定位
+- **现象**：MCP 面返回异常（例如空回复、`[object Object]`、只有引导页），而命令其实执行了。
+- **判据**：同一条 `cmd` 分别走两个入口——
+  - MCP：`term(cmd="ls")`
+  - HTTP：`POST /api/term` body `{"cmd":"ls"}`
+  - **MCP 异常而 HTTP 正常 → 桥接层（MCP 客户端 / stdio 传输）；两侧都异常 → 内核（解析 / 执行）。**
+- **约束**：**见到"半死"症状先二分，别先改代码。** 历史上正是靠这条把故障定位到桥接层，避免了在内核里找一个不存在的 bug。
 
 ---
 
