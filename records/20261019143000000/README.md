@@ -16,5 +16,6 @@
 
 ## 关联
 
+- [`APPENDIX.md`](./APPENDIX.md) —— 从 SKILL.md 归档过来的原始案例与证据（反引号截断、空 204、静默降级、MCP 通道死锁、Windows 中文）
 - [Termcp#131](https://github.com/open-mcp-ai/Termcp/issues/131) —— 完整的 bug 报告
 - [SKILL.md](../../SKILL.md) —— 本记录补充了 5 条桩
